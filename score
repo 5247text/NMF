@@ -1,0 +1,119 @@
+clear
+close all
+%% cspc2018_challenge score
+% Written by: Feifei Liu, Xingyao Wang, Chengyu Liu
+%             School of Instrument Science and Engineering
+%             Southeast University, China
+%             chengyu@seu.edu.cn
+
+% Score the prediction answers by comparing answers.csv and REFERENCE.csv in validation_set folder,
+% The scoring uses a F1 measure, which is an average of the nice F1 values from each classification
+% type. The specific score rules will be found on http://www.icbeb.org/Challenge.html.
+% Matrix A follows the format as:
+%                                      Predicted
+%                       Normal  AF  I-AVB  LBBB  RBBB  PAC  PVC  STD  STE
+%                Normal  N11   N12   N13   N14   N15   N16  N17  N18  N19
+%                AF      N21   N22   N23   N24   N25   N26  N27  N28  N29
+%                I-AVB   N31   N32   N33   N34   N35   N36  N37  N38  N39
+%                LBBB    N41   N42   N43   N44   N45   N46  N47  N48  N49
+% Reference      RBBB    N51   N52   N53   N54   N55   N56  N57  N58  N59
+%                PAC     N61   N62   N63   N64   N65   N66  N67  N68  N69
+%                PVC     N71   N72   N73   N74   N75   N76  N77  N78  N79
+%                STD     N81   N82   N83   N84   N85   N86  N87  N88  N89
+%                STE     N91   N92   N93   N94   N95   N96  N97  N98  N99
+% 
+% For each of the nine types, F1 is defined as:
+% Normal: F11=2*N11/(N1x+Nx1) AF: F12=2*N22/(N2x+Nx2) I-AVB: F13=2*N33/(N3x+Nx3) LBBB: F14=2*N44/(N4x+Nx4) RBBB: F15=2*N55/(N5x+Nx5)
+% PAC: F16=2*N66/(N6x+Nx6)    PVC: F17=2*N77/(N7x+Nx7)    STD: F18=2*N88/(N8x+Nx8)    STE: F19=2*N99/(N9x+Nx9)
+% 
+% The final challenge score is defined as:
+% F1 = (F11+F12+F13+F14+F15+F16+F17+F18+F19)/9
+% 
+% In addition, we alse calculate the F1 measures for each of the four sub-abnormal types:
+%             AF: Faf=2*N22/(N2x+Nx2)                         Block: Fblock=2*(N33+N44+N55)/(N3x+Nx3+N4x+Nx4+N5x+Nx5)
+% Premature contraction: Fpc=2*(N66+N77)/(N6x+Nx6+N7x+Nx7)    ST-segment change: Fst=2*(N88+N99)/(N8x+Nx8+N9x+Nx9)
+% 
+% The static of predicted answers and the final score are saved to score.txt in local path.
+%%
+Participant_Name={'Participant Name'};% Participant's Name
+record_path=[pwd filesep 'test_set' filesep]; % data file path
+ref_file=[record_path 'REFERENCE.csv'];% REFERENCE.csv path
+
+%  challengers can write their algorithms in to cpsc2018 function
+classify_result=cpsc2018(record_path);  
+% output classify_result including two cloumn
+% the first column is recording name 
+% the second column is prediction label
+% for example:
+% Recording    Result
+% A0001       1
+% .           .
+% .           .
+% .           .
+
+
+fid = fopen(ref_file, 'r');
+if(fid ~= -1)
+    [Recording, LABEL_1, LABEL_2, LABEL_3] = textread(ref_file,'%s %s %s %s','delimiter', ',','emptyvalue', NaN);
+end
+fclose(fid);
+Recording = Recording(2:end);
+LABEL_1 = LABEL_1(2:end);
+LABEL_2 = LABEL_2(2:end);
+LABEL_3 = LABEL_3(2:end);
+data_number = length(Recording);
+Result = ones(data_number,1); % default output normal type
+N=zeros(9,9); %The counting rules for the numbers of the variables
+F=zeros(1,9);
+Range=1:9;
+
+for i=1:data_number
+    record_name=Recording{i};
+    current_record_name_index=find(ismember(classify_result.Recording,record_name));
+    Result(i)=classify_result.Result(current_record_name_index); % extracting classify result from classify_result
+
+    if ~ismember(Result(i),Range)
+       current_classifyResult=1; %if Result is not in 1:9, Result=1;
+    else
+       current_classifyResult=Result(i);
+    end
+    ref_label=[str2num(LABEL_1{i}),str2num(LABEL_2{i}),str2num(LABEL_3{i})];
+    C=ismember(current_classifyResult,ref_label);
+    if C==1
+        N(current_classifyResult,current_classifyResult)=N(current_classifyResult,current_classifyResult)+1;
+    else
+        N(ref_label(1),current_classifyResult)=N(ref_label(1),current_classifyResult)+1;
+    end
+end
+N_x_line=sum(N,2);
+N_x_row=sum(N,1);
+for i=1:9
+    F(i)=2*N(i,i)/(N_x_line(i)+N_x_row(i));
+end
+F1=mean(F);
+F11=F(1);
+F12=F(2);
+F13=F(3);
+F14=F(4);
+F15=F(5);
+F16=F(6);
+F17=F(7);
+F18=F(8);
+F19=F(9);
+%% calculate the F1 measures for each of the four sub-abnormal types, i.e., the AF, block, premature contraction and ST-segment change
+Faf=F(2);
+Fblock=2*(N(3,3)+N(4,4)+N(5,5))/(N_x_line(3)+N_x_line(4)+N_x_line(5)+N_x_row(3)+N_x_row(4)+N_x_row(5));
+Fpc=2*(N(6,6)+N(7,7))/(N_x_line(6)+N_x_line(7)+N_x_row(6)+N_x_row(7));
+Fst=2*(N(8,8)+N(9,9))/(N_x_line(8)+N_x_line(9)+N_x_row(8)+N_x_row(9));
+
+%% score
+score_total=[F11,F12,F13,F14,F15,F16,F17,F18,F19,F1,Faf,Fblock,Fpc,Fst];
+index={'F11:','F12:','F13:','F14:','F15:','F16:','F17:','F18:','F19:','F1:','Faf:','Fblock:','Fpc:','Fst:'};
+fp=fopen('score.txt','a');
+for i=1:length(score_total)
+    fprintf(fp,'%s\t',index{i});
+    fprintf(fp,'%1.3f\r\n',score_total(i));
+end
+fclose(fp);
+%% save classify result
+writetable(classify_result, 'Result.csv');
