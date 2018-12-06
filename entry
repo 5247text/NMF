@@ -1,0 +1,53 @@
+% function classifyResult = CSPC2018_challenge()
+%
+% Sample entry for the China Physiological Signal Challenge (CSPC) 2018.
+
+%% cspc2018_challenge score
+% Written by: Feifei Liu, Xingyao Wang, Chengyu Liu
+%             School of Instrument Science and Engineering
+%             Southeast University, China
+%             chengyu@seu.edu.cn
+%%
+
+% INPUTS:
+% data_file_path: ECG signal data file path
+
+% OUTPUTS:
+% classify_result including two cloumn
+% the first column is recording name 
+% the second column is prediction label
+% for example:
+% Recording    Result
+% A0001       1
+% .           .
+% .           .
+% .           .
+
+% Result: integer value where
+%                     1: Normal
+%                     2: Atrial fibrillation (AF)
+%                     3: First-degree atrioventricular block (I-AVB)
+%                     4: Left bundle branch block (LBBB)
+%                     5: Right bundle branch block (RBBB)
+%                     6; Premature atrial contraction (PAC)
+%                     7: Premature ventricular contraction (PVC)
+%                     8: ST-segment depression (STD)
+%                     9: ST-segment elevated (STE)
+function classify_result = cpsc2018(record_path)
+
+         %###########################INFERENCE PART################################
+         index=dir(fullfile(record_path,'*.mat'));
+         Recording=cell(length(index),1);
+         Result=zeros(length(index),1);
+         for i=1:length(index)
+             Recording{i}=index(i).name(1:5);
+             load(strcat(record_path,Recording{i}));
+             ecg=ECG.data;      
+             % Please process the ecg data, and output the classification result.
+             % result should be an integer number in [1, 9].
+             Result(i) = your_processing_method(ecg);
+             
+         end
+        %% classify result
+        classify_result=table(Recording,Result);
+end
